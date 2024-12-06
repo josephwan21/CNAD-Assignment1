@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -128,12 +129,88 @@ func HandleGetUserReservations(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reservations)
 }
 
+func UpdateReservationHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract reservation ID from URL
+	vars := mux.Vars(r)
+	reservationID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid reservation ID", http.StatusBadRequest)
+		return
+	}
+
+	// Decode the request body to get new start and end times
+	var requestData struct {
+		StartTime string `json:"start_time"`
+		EndTime   string `json:"end_time"`
+	}
+
+	err = json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Convert start and end times to time.Time
+	startTime, err := time.Parse(time.RFC3339, requestData.StartTime)
+	if err != nil {
+		http.Error(w, "Invalid start time format", http.StatusBadRequest)
+		return
+	}
+
+	endTime, err := time.Parse(time.RFC3339, requestData.EndTime)
+	if err != nil {
+		http.Error(w, "Invalid end time format", http.StatusBadRequest)
+		return
+	}
+
+	dbConn := db.InitDB()
+	defer dbConn.Close()
+
+	// Call the UpdateReservation function to update the timings
+	err = reservation.UpdateReservation(dbConn, reservationID, startTime, endTime)
+	if err != nil {
+		http.Error(w, "Failed to update reservation", http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Reservation updated successfully"})
+}
+
+// DeleteReservationHandler handles deleting a reservation
+func DeleteReservationHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract reservation ID from URL
+	vars := mux.Vars(r)
+	reservationID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid reservation ID", http.StatusBadRequest)
+		return
+	}
+
+	dbConn := db.InitDB()
+	defer dbConn.Close()
+
+	// Call the DeleteReservation function to delete the reservation
+	err = reservation.DeleteReservation(dbConn, reservationID)
+	if err != nil {
+		http.Error(w, "Failed to delete reservation", http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Reservation deleted successfully"})
+}
+
 func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/vehicles", HandleGetAvailableVehicles)
 	router.HandleFunc("/reserve", HandleCreateReservation)
 	router.HandleFunc("/reservations", HandleGetUserReservations)
+	router.HandleFunc("/reservations/{id}", UpdateReservationHandler).Methods("PUT")
+	router.HandleFunc("/reservations/{id}", DeleteReservationHandler).Methods("DELETE")
 
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
