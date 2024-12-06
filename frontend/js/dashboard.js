@@ -24,7 +24,7 @@ function fetchUserData(token) {
         if (data) {
             // Display user info (name and membership tier)
             document.getElementById('welcome-message').innerText = `Hello, ${data.name}`;
-            document.getElementById('membership-tier').innerText = data.membership;
+            document.getElementById('membership-tier').innerHTML = `<strong>${data.membership}</strong>`;
 
             // Fetch and display user's reservations
             fetchReservations();
@@ -86,9 +86,42 @@ function fetchReservations() {
                 return `<div class="reservation">
                             <p>Vehicle: <strong>${reservation.make} ${reservation.model}</strong></p>
                             <p>Reservation from ${reservation.start_time} to ${reservation.end_time}</p>
+                            <button class="update-res-btn" data-id="${reservation.id}">Update Reservation</button>
+                            <button class="delete-res-btn" data-id="${reservation.id}">Delete Reservation</button>
+                            <div class="update-form" id="update-form-${reservation.id}" style="display: none;">
+                                <label for="start-time-${reservation.id}">Start Time:</label>
+                                <input type="datetime-local" id="start-time-${reservation.id}">
+                                <label for="end-time-${reservation.id}">End Time:</label>
+                                <input type="datetime-local" id="end-time-${reservation.id}">
+                                <button class="save-update-btn" data-id="${reservation.id}">Save</button>
+                                <button class="cancel-update-btn" data-id="${reservation.id}">Cancel</button>
+                            </div>
                         </div>`;
             }).join('');
             document.getElementById('reservations').innerHTML = reservationsList;
+            // Add event listeners for Update buttons
+            const updateButtons = document.querySelectorAll('.update-res-btn');
+            updateButtons.forEach(button => {
+                button.addEventListener('click', handleUpdate);
+            });
+
+            // Add event listeners for Delete buttons
+            const deleteButtons = document.querySelectorAll('.delete-res-btn');
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', handleDelete);
+            });
+
+            // Add event listeners for Save buttons in the form
+            const saveUpdateButtons = document.querySelectorAll('.save-update-btn');
+            saveUpdateButtons.forEach(button => {
+                button.addEventListener('click', handleSaveUpdate);
+            });
+
+            // Add event listeners for Cancel buttons in the form
+            const cancelUpdateButtons = document.querySelectorAll('.cancel-update-btn');
+            cancelUpdateButtons.forEach(button => {
+                button.addEventListener('click', handleCancelUpdate);
+            });
         } else {
             // Show message if no reservations
             document.getElementById('reservations').innerHTML = '<p>You have no active reservations.</p>';
@@ -99,6 +132,90 @@ function fetchReservations() {
         alert('An error occurred while fetching your reservations.');
     });
 }
+
+// Handle update button click
+function handleUpdate(event) {
+    const reservationId = event.target.dataset.id;
+    const updateForm = document.getElementById(`update-form-${reservationId}`);
+    updateForm.style.display = 'block'; // Show the form to update reservation timings
+
+    const updateButton = document.querySelector('.update-res-btn');
+    updateButton.style.display = 'none';
+}
+
+// Handle save update button click
+function handleSaveUpdate(event) {
+    const reservationId = event.target.dataset.id;
+    const newStartTime = document.getElementById(`start-time-${reservationId}`).value;
+    const newEndTime = document.getElementById(`end-time-${reservationId}`).value;
+
+    const startDate = new Date(newStartTime);
+    const endDate = new Date(newEndTime);
+
+    const startTimeISO = startDate.toISOString();
+    const endTimeISO = endDate.toISOString();
+
+    // Call API to update the reservation
+    const token = localStorage.getItem('jwt');
+    fetch(`http://localhost:8082/reservations/${reservationId}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            start_time: startTimeISO,
+            end_time: endTimeISO
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Updated reservation:', data);
+        fetchReservations();  // Refresh reservations list
+    })
+    .catch(err => {
+        console.error('Error updating reservation:', err);
+        alert('An error occurred while updating your reservation.');
+    });
+}
+
+// Handle cancel update button click
+function handleCancelUpdate(event) {
+    const reservationId = event.target.dataset.id;
+    const updateForm = document.getElementById(`update-form-${reservationId}`);
+    updateForm.style.display = 'none'; // Hide the form
+
+    // Show the update button again
+    const updateButton = document.querySelector('.update-res-btn');
+    updateButton.style.display = 'block';
+}
+
+// Handle delete button click
+function handleDelete(event) {
+    const reservationId = event.target.dataset.id;
+
+    // Confirm before deletion
+    if (confirm('Are you sure you want to delete this reservation?')) {
+        const token = localStorage.getItem('jwt');
+        fetch(`http://localhost:8082/reservations/${reservationId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Deleted reservation:', data);
+            fetchReservations();  // Refresh reservations list
+        })
+        .catch(err => {
+            console.error('Error deleting reservation:', err);
+            alert('An error occurred while deleting your reservation.');
+        });
+    }
+}
+
 
 // Logout function: remove the token and redirect to the login page
 document.getElementById('logout-btn').addEventListener('click', function() {
