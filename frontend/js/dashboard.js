@@ -27,7 +27,7 @@ function fetchUserData(token) {
             document.getElementById('membership-tier').innerText = data.membership;
 
             // Fetch and display user's reservations
-            fetchReservations(data.id);
+            fetchReservations();
         } else {
             alert('Unable to fetch user data');
         }
@@ -69,28 +69,35 @@ document.getElementById('update-profile-form').addEventListener('submit', functi
 });
 
 // Fetch the user's reservations
-function fetchReservations(userId) {
-    fetch(`http://localhost:8080/reservations?user_id=${userId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.reservations && data.reservations.length > 0) {
-                // Display reservations
-                const reservationsList = data.reservations.map(reservation => {
-                    return `<div class="reservation">
-                                <p>Vehicle: ${reservation.vehicle.make} ${reservation.vehicle.model}</p>
-                                <p>Reservation from ${reservation.start_time} to ${reservation.end_time}</p>
-                            </div>`;
-                }).join('');
-                document.getElementById('reservations').innerHTML = reservationsList;
-            } else {
-                // Show message if no reservations
-                document.getElementById('reservations').innerHTML = '<p>You have no active reservations.</p>';
-            }
-        })
-        .catch(err => {
-            console.error('Error fetching reservations:', err);
-            alert('An error occurred while fetching your reservations.');
-        });
+function fetchReservations() {
+    const token = localStorage.getItem('jwt');
+    fetch('http://localhost:8082/reservations', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Fetched reservations data:', data);
+        if (data.length > 0) {
+            // Display reservations
+            const reservationsList = data.map(reservation => {
+                return `<div class="reservation">
+                            <p>Vehicle: <strong>${reservation.make} ${reservation.model}</strong></p>
+                            <p>Reservation from ${reservation.start_time} to ${reservation.end_time}</p>
+                        </div>`;
+            }).join('');
+            document.getElementById('reservations').innerHTML = reservationsList;
+        } else {
+            // Show message if no reservations
+            document.getElementById('reservations').innerHTML = '<p>You have no active reservations.</p>';
+        }
+    })
+    .catch(err => {
+        console.error('Error fetching reservations:', err);
+        alert('An error occurred while fetching your reservations.');
+    });
 }
 
 // Logout function: remove the token and redirect to the login page
