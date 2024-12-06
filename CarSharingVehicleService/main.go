@@ -6,13 +6,17 @@ import (
 	"Assg1/CarSharingVehicleService/package/reservation"
 	"Assg1/CarSharingVehicleService/package/vehicle"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
+
+var jwtSecret = []byte("your-secret-key")
 
 // HandleGetAvailableVehicles handles GET requests to retrieve available vehicles
 func HandleGetAvailableVehicles(w http.ResponseWriter, r *http.Request) {
@@ -72,11 +76,64 @@ func HandleCreateReservation(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(res)
 }
 
+// Example usage in a handler or service
+func HandleGetUserReservations(w http.ResponseWriter, r *http.Request) {
+	tokenString := r.Header.Get("Authorization")
+	if tokenString == "" {
+		http.Error(w, "Missing token", http.StatusUnauthorized)
+		return
+	}
+
+	// Strip the "Bearer " prefix from the token
+	tokenString = tokenString[7:]
+
+	// Parse and validate the token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return jwtSecret, nil
+	})
+
+	if err != nil || !token.Valid {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	// Extract email from the JWT claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || claims["userid"] == nil {
+		http.Error(w, "User ID not found in token", http.StatusUnauthorized)
+		return
+	}
+	fmt.Printf("Claims: %v", claims)
+	userID := claims["userid"].(float64)
+	userIDInt := int(userID)
+	fmt.Printf("User ID: %d", userIDInt)
+
+	// Initialize database connection
+	dbConn := db.InitDB()
+	defer dbConn.Close()
+
+	// Call GetReservationsByUserID
+	reservations, err := reservation.GetReservationsByUserID(dbConn, userIDInt)
+	if err != nil {
+		log.Printf("Error retrieving reservations for user %d: %v", userIDInt, err)
+		http.Error(w, "Error retrieving reservations", http.StatusInternalServerError)
+		return
+	}
+
+	// Return the reservations as JSON response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reservations)
+}
+
 func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/vehicles", HandleGetAvailableVehicles)
 	router.HandleFunc("/reserve", HandleCreateReservation)
+	router.HandleFunc("/reservations", HandleGetUserReservations)
 
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
