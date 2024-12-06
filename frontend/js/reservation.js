@@ -63,12 +63,6 @@ fetch('http://localhost:8082/vehicles')
                     start_time: startTimeISO,
                     end_time: endTimeISO
                 };
-                /*const reservationData = {
-                    user_id: 1,
-                    vehicle_id: 4,
-                    start_time: '2024-12-01T10:00:00Z',
-                    end_time: '2024-12-01T12:00:00Z'
-                };*/
                 fetch('http://localhost:8082/reserve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
