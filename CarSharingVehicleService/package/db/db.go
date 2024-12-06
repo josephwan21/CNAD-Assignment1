@@ -8,7 +8,7 @@ import (
 )
 
 func InitDB() *sql.DB {
-	dsn := "user:password@tcp(localhost:3306)/carsharingvehicleservice"
+	dsn := "user:password@tcp(localhost:3306)/carsharingvehicleservice?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
