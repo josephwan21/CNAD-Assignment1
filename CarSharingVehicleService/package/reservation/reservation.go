@@ -76,3 +76,17 @@ func GetReservationsByUserID(db *sql.DB, userID int) ([]Reservation, error) {
 	// Return the slice of reservations
 	return reservations, nil
 }
+
+// UpdateReservation updates the reservation timings (start_time, end_time)
+func UpdateReservation(db *sql.DB, reservationID int, startTime, endTime time.Time) error {
+	query := "UPDATE reservations SET start_time = ?, end_time = ? WHERE id = ?"
+	_, err := db.Exec(query, startTime, endTime, reservationID)
+	return err
+}
+
+// DeleteReservation deletes a reservation by its ID
+func DeleteReservation(db *sql.DB, reservationID int) error {
+	query := "DELETE FROM reservations WHERE id = ?"
+	_, err := db.Exec(query, reservationID)
+	return err
+}
