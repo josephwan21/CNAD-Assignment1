@@ -2,7 +2,7 @@
 body {
     font-family: Arial, sans-serif;
     background-color: #f4f7fa;
-    color: #333;
+    color: #333333;
     line-height: 1.6;
 }
 
@@ -83,7 +83,7 @@ footer {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     padding: 16px;
     margin: 16px 0;
-    background-color: #fff;
+    background-color: #ffffff;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -93,16 +93,83 @@ footer {
 }
 
 .vehicle{
-    border: 1px solid #ddd;
+    border: 1px solid #dddddd;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     padding: 16px;
     margin: 16px 0;
-    background-color: #fff;
+    background-color: #ffffff;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .vehicle:hover {
     transform: scale(1.02);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.login-container {
+    width: 100%;
+    max-width: 400px;
+    margin: 50px auto;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.login-container h2 {
+    text-align: center;
+}
+
+.login-btn {
+    text-align: center;
+}
+
+button {
+    background-color: #2d3e50;
+    color: white;
+    text-decoration: none;
+    border-radius: 10px;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+    padding: 10px 50px;   
+    cursor: pointer;
+    border: none;
+}
+
+#password, #email, #name {
+    width: 340px;
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 1px solid #dddddd;
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: #f9f9f9;
+}
+
+.login-container p {
+    text-align: center;
+}
+
+.register-container {
+    width: 100%;
+    max-width: 400px;
+    margin: 50px auto;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.register-container h2 {
+    text-align: center;
+}
+
+.register-container p {
+    text-align: center;
+}
+
+.register-btn {
+    text-align: center;
 }
