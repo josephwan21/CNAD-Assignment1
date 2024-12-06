@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/smtp"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -98,12 +99,23 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = dbConn.Exec("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", user.Name, user.Email, hashedPassword)
+	result, err := dbConn.Exec("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", user.Name, user.Email, hashedPassword)
 	if err != nil {
 		http.Error(w, "Error registering user", http.StatusInternalServerError)
 		log.Printf("Error hashing")
 		return
 	}
+
+	// Retrieve the ID of the newly inserted user
+	userID, err := result.LastInsertId() // MySQL specific method to get the last inserted ID
+	if err != nil {
+		http.Error(w, "Error retrieving user ID", http.StatusInternalServerError)
+		log.Printf("Error retrieving user ID: %v", err)
+		return
+	}
+
+	sendVerificationEmail(user.Email, int(userID))
+	fmt.Printf("User ID: %d", user.ID)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully!"})
@@ -120,6 +132,79 @@ func generateJWT(email string, id int) (string, error) {
 	// Create a new token with the claims and sign it with the secret
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtSecret)
+}
+
+func sendVerificationEmail(email string, userId int) {
+	// Generate verification token
+	token, err := generateJWT(email, userId)
+	if err != nil {
+		log.Fatal("Error generating token", err)
+		return
+	}
+
+	// Create the verification URL
+	verificationURL := fmt.Sprintf("http://localhost:8080/verify?token=%s", token)
+
+	// Send the email (simplified for example)
+	auth := smtp.PlainAuth("", "josephbwanzj@gmail.com", "ofpi wrtr jnoa iniy", "smtp.gmail.com")
+	to := []string{email}
+	subject := "Verify Your Email"
+	message := []byte(fmt.Sprintf("Subject: %s\n\nWelcome to our Car Sharing service! To verify your email, we would like you to click on the following link: %s", subject, verificationURL))
+
+	err = smtp.SendMail("smtp.gmail.com:587", auth, "josephbwanzj@gmail.com", to, message)
+	if err != nil {
+		log.Fatal("Failed to send email:", err)
+	}
+}
+
+func verifyEmailHandler(w http.ResponseWriter, r *http.Request) {
+	tokenString := r.URL.Query().Get("token")
+	if tokenString == "" {
+		http.Error(w, "Token missing", http.StatusBadRequest)
+		return
+	}
+
+	// Parse and validate the token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Make sure the signing method is correct
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method %v", token.Header["alg"])
+		}
+		return jwtSecret, nil
+	})
+
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	// Extract claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+	fmt.Printf("Claims: %v", claims)
+
+	// Extract user ID and verify the token's expiration
+	userId, ok := claims["userid"].(float64)
+	if !ok {
+		http.Error(w, "Invalid user ID", http.StatusUnauthorized)
+		return
+	}
+
+	dbConn := db.InitDB()
+	defer dbConn.Close()
+
+	// Update the user's status to "verified"
+	_, err = dbConn.Exec("UPDATE Users SET verified = true WHERE id = ?", int(userId))
+	if err != nil {
+		http.Error(w, "Error verifying user", http.StatusInternalServerError)
+		return
+	}
+
+	// Send a response
+	fmt.Fprintln(w, "Email verified successfully!")
 }
 
 func HandleUpgradeMembership(w http.ResponseWriter, r *http.Request) {
@@ -272,6 +357,7 @@ func main() {
 	router.HandleFunc("/register", HandleRegister)
 	router.HandleFunc("/user-profile", HandleGetProfile)
 	router.HandleFunc("/update-profile", HandleUpdateProfile)
+	router.HandleFunc("/verify", verifyEmailHandler)
 
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
