@@ -86,7 +86,22 @@ func UpdateReservation(db *sql.DB, reservationID int, startTime, endTime time.Ti
 
 // DeleteReservation deletes a reservation by its ID
 func DeleteReservation(db *sql.DB, reservationID int) error {
-	query := "DELETE FROM reservations WHERE id = ?"
-	_, err := db.Exec(query, reservationID)
-	return err
+	var vehicleID int
+	query := "SELECT vehicle_id FROM reservations WHERE id = ?"
+	err := db.QueryRow(query, reservationID).Scan(&vehicleID)
+	if err != nil {
+		return err // Return if there was an issue getting the vehicle ID
+	}
+	query = "DELETE FROM reservations WHERE id = ?"
+	_, err = db.Exec(query, reservationID)
+	if err != nil {
+		return err
+	}
+
+	updateQuery := "UPDATE carsharingvehicleservice.vehicles SET is_available = true WHERE id = ?"
+	_, err = db.Exec(updateQuery, vehicleID)
+	if err != nil {
+		return err // Return if there was an issue updating the vehicle availability
+	}
+	return nil
 }
