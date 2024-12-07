@@ -8,17 +8,33 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var db *sql.DB
+var dbConn *sql.DB
 
-func InitDB() *sql.DB {
-	if db == nil {
-		var err error
-		// Adjust this connection string with your MySQL credentials
-		dsn := "root:rootpassword@tcp(localhost:3307)/CarSharingBillingService"
-		db, err = sql.Open("mysql", dsn)
+func InitDB() error {
+	var err error
+	dbConn, err = sql.Open("mysql", "user:password@tcp(localhost:3306)/carsharingbillingservice?parseTime=true")
+	if err != nil {
+		return err
+	}
+
+	// Verify the connection
+	if err := dbConn.Ping(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetDBConn retrieves the database connection
+func GetDBConn() *sql.DB {
+	return dbConn
+}
+
+// CloseDB closes the database connection pool (if needed)
+func CloseDB() {
+	if dbConn != nil {
+		err := dbConn.Close()
 		if err != nil {
-			log.Fatal("Error connecting to the database:", err)
+			log.Println("Error closing the database connection:", err)
 		}
 	}
-	return db
 }
