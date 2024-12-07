@@ -10,6 +10,15 @@ function checkAuth() {
     }
 }
 
+// Decode JWT and extract user ID
+const token = localStorage.getItem('jwt');
+const decoded = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+
+// Directly assign the user ID
+const userId = decoded.userid;
+
+console.log("User ID:", userId);
+
 // Fetch user details from the backend using the auth token
 function fetchUserData(token) {
     fetch('http://localhost:8080/user-profile', {
@@ -28,6 +37,7 @@ function fetchUserData(token) {
 
             // Fetch and display user's reservations
             fetchReservations();
+            fetchInvoicesByUser(userId);
         } else {
             alert('Unable to fetch user data');
         }
@@ -216,6 +226,32 @@ function handleDelete(event) {
     }
 }
 
+function fetchInvoicesByUser(userId) {
+    fetch(`http://localhost:8083/invoices?user_id=${userId}`)
+        .then(response => response.json())
+        .then(invoices => {
+            console.log('Invoices:', invoices);
+            // Optionally render the invoices to the UI
+            const invoicesList = document.getElementById('invoices');
+            invoicesList.innerHTML = ''; // Clear existing invoices
+            if (!invoices || invoices.length === 0) {
+                const noInvoicesMessage = document.createElement('div');
+                noInvoicesMessage.textContent = 'No invoices found.';
+                invoicesList.appendChild(noInvoicesMessage);
+                return; // Exit function if no invoices are found
+            }
+            invoices.forEach(invoice => {
+                const invoiceItem = document.createElement('div');
+                invoiceItem.innerHTML = `<strong>Invoice #${invoice.id}</strong><br>Vehicle ID: ${invoice.vehicle_id}<br>Vehicle: ${invoice.make} ${invoice.model}<br>Total Amount: $${invoice.total_amount}<br>Discount: $${invoice.discount}`;
+                
+                invoicesList.appendChild(invoiceItem);
+            });
+        })
+        .catch(err => {
+            console.error('Error fetching invoices:', err);
+            alert('Error fetching invoices');
+        });
+}
 
 // Logout function: remove the token and redirect to the login page
 document.getElementById('logout-btn').addEventListener('click', function() {
