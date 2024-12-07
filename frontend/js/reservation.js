@@ -118,10 +118,11 @@ fetch('http://localhost:8082/vehicles')
                 })
                 .then(response => response.json())
                 .then(data => {
+                    console.log("Reservation data:", data);
                     if (data.status === 'Active') {
                         alert('Reservation successful');
                         // Hide the form after reservation
-                        createInvoice(parseInt(vehicleId, startTimeISO, endTimeISO));
+                        createInvoice(data.id, parseInt(vehicleId), startTimeISO, endTimeISO);
                         document.getElementById(`reservation-form-${vehicleId}`).style.display = 'none';
                     } else {
                         alert('Error reserving vehicle');
@@ -135,8 +136,9 @@ fetch('http://localhost:8082/vehicles')
 });
 
 // Function to create the invoice after a reservation is successful
-function createInvoice(vehicleId, startTime, endTime) {
+function createInvoice(reservationId, vehicleId, startTime, endTime) {
     const invoiceData = {
+        reservation_id: reservationId,
         user_id: userId,
         vehicle_id: vehicleId,
         start_time: startTime,
@@ -154,8 +156,6 @@ function createInvoice(vehicleId, startTime, endTime) {
         console.log(invoice)
         // Handle successful invoice creation
         if (invoice) {
-            // Show the invoice details to the user
-            alert(`Invoice created successfully! User ID: ${invoice.user_id}\n Vehicle ID: ${invoice.vehicle_id} \n Vehicle: ${invoice.make} ${invoice.model} Total Amount: $${invoice.total_amount} `);
             // Optionally, display more invoice details here
             console.log("Invoice details:", invoice);
         } else {
