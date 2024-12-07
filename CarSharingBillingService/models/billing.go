@@ -9,14 +9,15 @@ import (
 
 // Billing represents a billing record
 type Billing struct {
-	ID          int       `json:"id"`
-	UserID      int       `json:"user_id"`
-	VehicleID   int       `json:"vehicle_id"`
-	Make        string    `json:"make"`
-	Model       string    `json:"model"`
-	TotalAmount float64   `json:"total_amount"`
-	Discount    float64   `json:"discount"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID            int       `json:"id"`
+	UserID        int       `json:"user_id"`
+	VehicleID     int       `json:"vehicle_id"`
+	ReservationID int       `json:"reservation_id"`
+	Make          string    `json:"make"`
+	Model         string    `json:"model"`
+	TotalAmount   float64   `json:"total_amount"`
+	Discount      float64   `json:"discount"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // CalculateBilling calculates the total billing amount based on rental duration, membership, and any applicable discounts
@@ -61,9 +62,9 @@ func CalculateBilling(db *sql.DB, userID int, startTime time.Time, endTime time.
 }
 
 // CreateBillingRecord creates a new billing record in the database
-func CreateBillingRecord(db *sql.DB, userID int, vehicleID int, totalAmount float64, discount float64) (Billing, error) {
-	query := "INSERT INTO billing (user_id, vehicle_id, total_amount, discount) VALUES (?, ?, ?, ?)"
-	result, err := db.Exec(query, userID, vehicleID, totalAmount, discount)
+func CreateBillingRecord(db *sql.DB, reservationID int, userID int, vehicleID int, totalAmount float64, discount float64) (Billing, error) {
+	query := "INSERT INTO billing (reservation_id, user_id, vehicle_id, total_amount, discount) VALUES (?, ?, ?, ?, ?)"
+	result, err := db.Exec(query, reservationID, userID, vehicleID, totalAmount, discount)
 	if err != nil {
 		return Billing{}, err
 	}
@@ -74,18 +75,19 @@ func CreateBillingRecord(db *sql.DB, userID int, vehicleID int, totalAmount floa
 	}
 
 	return Billing{
-		ID:          int(billingID),
-		UserID:      userID,
-		VehicleID:   vehicleID,
-		TotalAmount: totalAmount,
-		Discount:    discount,
-		CreatedAt:   time.Now(),
+		ID:            int(billingID),
+		ReservationID: reservationID,
+		UserID:        userID,
+		VehicleID:     vehicleID,
+		TotalAmount:   totalAmount,
+		Discount:      discount,
+		CreatedAt:     time.Now(),
 	}, nil
 }
 
 // GetInvoicesByUser fetches all invoices for a given user from the database
 func GetInvoicesByUser(db *sql.DB, userID int) ([]Billing, error) {
-	query := "SELECT b.id, b.user_id, b.vehicle_id, v.make, v.model, b.total_amount, b.discount, b.created_at FROM billing b INNER JOIN CarSharingVehicleService.Vehicles v ON b.vehicle_id = v.id WHERE user_id = ?"
+	query := "SELECT b.id, b.reservation_id, b.user_id, b.vehicle_id, v.make, v.model, b.total_amount, b.discount, b.created_at FROM billing b INNER JOIN CarSharingVehicleService.Vehicles v ON b.vehicle_id = v.id WHERE user_id = ?"
 	rows, err := db.Query(query, userID)
 	if err != nil {
 		return nil, err
@@ -95,7 +97,7 @@ func GetInvoicesByUser(db *sql.DB, userID int) ([]Billing, error) {
 	var invoices []Billing
 	for rows.Next() {
 		var invoice Billing
-		err := rows.Scan(&invoice.ID, &invoice.UserID, &invoice.VehicleID, &invoice.Make, &invoice.Model, &invoice.TotalAmount, &invoice.Discount, &invoice.CreatedAt)
+		err := rows.Scan(&invoice.ID, &invoice.ReservationID, &invoice.UserID, &invoice.VehicleID, &invoice.Make, &invoice.Model, &invoice.TotalAmount, &invoice.Discount, &invoice.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -107,4 +109,14 @@ func GetInvoicesByUser(db *sql.DB, userID int) ([]Billing, error) {
 	}
 
 	return invoices, nil
+}
+
+// DeleteInvoiceByReservationID deletes an invoice by its associated reservation ID
+func DeleteInvoiceByReservationID(db *sql.DB, reservationID int) error {
+	query := "DELETE FROM billing WHERE reservation_id = ?"
+	_, err := db.Exec(query, reservationID)
+	if err != nil {
+		return err
+	}
+	return nil
 }

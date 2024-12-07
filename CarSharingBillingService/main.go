@@ -55,10 +55,11 @@ func CreateInvoiceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Define a struct to bind the request body to
 	var req struct {
-		UserID    int       `json:"user_id"`
-		VehicleID int       `json:"vehicle_id"`
-		StartTime time.Time `json:"start_time"`
-		EndTime   time.Time `json:"end_time"`
+		UserID        int       `json:"user_id"`
+		VehicleID     int       `json:"vehicle_id"`
+		ReservationID int       `json:"reservation_id"`
+		StartTime     time.Time `json:"start_time"`
+		EndTime       time.Time `json:"end_time"`
 	}
 
 	// Decode the incoming request body into the struct
@@ -79,7 +80,7 @@ func CreateInvoiceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create the billing record in the database
-	billingRecord, err := billing.CreateBillingRecord(dbConn, req.UserID, req.VehicleID, totalAmount, discount)
+	billingRecord, err := billing.CreateBillingRecord(dbConn, req.ReservationID, req.UserID, req.VehicleID, totalAmount, discount)
 	if err != nil {
 		fmt.Printf("Error creating invoice for UserID: %d, Total Amount: %v, Discount: %v, Error: %v\n",
 			req.UserID, totalAmount, discount, err)
@@ -92,15 +93,17 @@ func CreateInvoiceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare the response struct with the billing details
 	response := struct {
-		UserID    int `json:"user_id"`
-		VehicleID int `json:"vehicle_id"`
+		ReservationID int `json:"reservation_id"`
+		UserID        int `json:"user_id"`
+		VehicleID     int `json:"vehicle_id"`
 
 		TotalAmount float64 `json:"total_amount"`
 		Discount    float64 `json:"discount"`
 	}{
-		UserID:      billingRecord.UserID,
-		TotalAmount: billingRecord.TotalAmount,
-		Discount:    billingRecord.Discount,
+		ReservationID: billingRecord.ReservationID,
+		UserID:        billingRecord.UserID,
+		TotalAmount:   billingRecord.TotalAmount,
+		Discount:      billingRecord.Discount,
 	}
 
 	// Send the response back to the client
@@ -135,6 +138,37 @@ func GetInvoicesByUserHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(invoices)
 }
 
+// DeleteInvoiceHandler handles the DELETE request for deleting an invoice by reservation ID
+func DeleteInvoiceHandler(w http.ResponseWriter, r *http.Request) {
+	// Get the reservation ID from the URL
+	reservationIDStr := r.URL.Query().Get("reservation_id")
+	if reservationIDStr == "" {
+		http.Error(w, "Reservation ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Convert reservation ID from string to int
+	reservationID, err := strconv.Atoi(reservationIDStr)
+	if err != nil {
+		http.Error(w, "Invalid reservation ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get the database connection (assuming you have a function to connect to the database)
+	dbConn := db.GetDBConn()
+
+	// Call the function to delete the invoice by reservation ID
+	err = billing.DeleteInvoiceByReservationID(dbConn, reservationID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error deleting invoice: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Send a success response
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Invoice deleted successfully"})
+}
+
 func main() {
 	err := db.InitDB()
 	if err != nil {
@@ -145,7 +179,8 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/calculatebilling", HandleCalculateBilling)
 	router.HandleFunc("/createinvoice", CreateInvoiceHandler)
-	router.HandleFunc("/invoices", GetInvoicesByUserHandler)
+	router.HandleFunc("/invoices", GetInvoicesByUserHandler).Methods("GET")
+	router.HandleFunc("/invoices", DeleteInvoiceHandler).Methods("DELETE")
 
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
