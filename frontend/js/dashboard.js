@@ -90,7 +90,7 @@ function fetchReservations() {
     .then(response => response.json())
     .then(data => {
         console.log('Fetched reservations data:', data);
-        if (data.length > 0) {
+        if (data && data.length > 0) {
             // Display reservations
             const reservationsList = data.map(reservation => {
                 return `<div class="reservation">
@@ -201,13 +201,13 @@ function handleCancelUpdate(event) {
 }
 
 // Handle delete button click
-function handleDelete(event) {
+async function handleDelete(event) {
     const reservationId = event.target.dataset.id;
 
     // Confirm before deletion
     if (confirm('Are you sure you want to delete this reservation?')) {
         const token = localStorage.getItem('jwt');
-        fetch(`http://localhost:8082/reservations/${reservationId}`, {
+        await fetch(`http://localhost:8082/reservations/${reservationId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -217,17 +217,24 @@ function handleDelete(event) {
         .then(response => response.json())
         .then(data => {
             console.log('Deleted reservation:', data);
+
+            deleteInvoice(reservationId, token);
+            console.log("Deleted invoice by reservation ID:", reservationId);
+            
             fetchReservations();  // Refresh reservations list
+            
+            fetchInvoicesByUser(userId);
         })
         .catch(err => {
             console.error('Error deleting reservation:', err);
             alert('An error occurred while deleting your reservation.');
         });
+
     }
 }
 
-function fetchInvoicesByUser(userId) {
-    fetch(`http://localhost:8083/invoices?user_id=${userId}`)
+async function fetchInvoicesByUser(userId) {
+    await fetch(`http://localhost:8083/invoices?user_id=${userId}`)
         .then(response => response.json())
         .then(invoices => {
             console.log('Invoices:', invoices);
@@ -242,7 +249,7 @@ function fetchInvoicesByUser(userId) {
             }
             invoices.forEach(invoice => {
                 const invoiceItem = document.createElement('div');
-                invoiceItem.innerHTML = `<strong>Invoice #${invoice.id}</strong><br>Vehicle ID: ${invoice.vehicle_id}<br>Vehicle: ${invoice.make} ${invoice.model}<br>Total Amount: $${invoice.total_amount}<br>Discount: $${invoice.discount}`;
+                invoiceItem.innerHTML = `<strong>Invoice ID: ${invoice.id}</strong><br>Vehicle ID: ${invoice.vehicle_id}<br>Vehicle: ${invoice.make} ${invoice.model}<br>Total Amount: $${invoice.total_amount}<br>Discount: $${invoice.discount}`;
                 
                 invoicesList.appendChild(invoiceItem);
             });
@@ -251,6 +258,32 @@ function fetchInvoicesByUser(userId) {
             console.error('Error fetching invoices:', err);
             alert('Error fetching invoices');
         });
+}
+
+// Function to delete the invoice associated with the reservation
+async function deleteInvoice(reservationId, token) {
+    await fetch(`http://localhost:8083/invoices?reservation_id=${reservationId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Deleted Data: ", data)
+        if (data.message === 'Invoice deleted successfully') {
+            console.log('Deleted invoice:', data);
+            fetchReservations();  // Refresh reservations list
+            alert('Reservation and associated invoice deleted successfully!');
+        } else {
+            alert('Error deleting invoice');
+        }
+    })
+    .catch(err => {
+        console.error('Error deleting invoice:', err);
+        alert('An error occurred while deleting the invoice.');
+    });
 }
 
 // Logout function: remove the token and redirect to the login page
