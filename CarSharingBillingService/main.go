@@ -5,15 +5,19 @@ import (
 	billing "Assg1/CarSharingBillingService/models"
 	"Assg1/CarSharingBillingService/package/db"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 )
 
 // HandleCalculateBilling handles POST requests for calculating billing
 func HandleCalculateBilling(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		RentalID  int       `json:"rental_id"`
 		UserID    int       `json:"user_id"`
 		StartTime time.Time `json:"start_time"`
 		EndTime   time.Time `json:"end_time"`
@@ -24,33 +28,133 @@ func HandleCalculateBilling(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbConn := db.InitDB()
-	defer dbConn.Close()
+	dbConn := db.GetDBConn()
 
 	// Calculate billing
-	totalAmount, discount, err := billing.CalculateBilling(dbConn, req.RentalID, req.UserID, req.StartTime, req.EndTime)
+	totalAmount, discount, err := billing.CalculateBilling(dbConn, req.UserID, req.StartTime, req.EndTime)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, "Error calculating billing", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	response := struct {
+		TotalAmount float64 `json:"total_amount"`
+		Discount    float64 `json:"discount"`
+	}{
+		TotalAmount: totalAmount,
+		Discount:    discount,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func CreateInvoiceHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Define a struct to bind the request body to
+	var req struct {
+		UserID    int       `json:"user_id"`
+		VehicleID int       `json:"vehicle_id"`
+		StartTime time.Time `json:"start_time"`
+		EndTime   time.Time `json:"end_time"`
+	}
+
+	// Decode the incoming request body into the struct
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Get the database connection
+	dbConn := db.GetDBConn()
+
+	// Calculate the billing (total amount and discount) based on the reservation times
+	totalAmount, discount, err := billing.CalculateBilling(dbConn, req.UserID, req.StartTime, req.EndTime)
 	if err != nil {
 		http.Error(w, "Error calculating billing", http.StatusInternalServerError)
 		return
 	}
 
-	// Create billing record
-	bill, err := billing.CreateBillingRecord(dbConn, req.RentalID, req.UserID, totalAmount, discount)
+	// Create the billing record in the database
+	billingRecord, err := billing.CreateBillingRecord(dbConn, req.UserID, req.VehicleID, totalAmount, discount)
 	if err != nil {
+		fmt.Printf("Error creating invoice for UserID: %d, Total Amount: %v, Discount: %v, Error: %v\n",
+			req.UserID, totalAmount, discount, err)
 		http.Error(w, "Error creating billing record", http.StatusInternalServerError)
 		return
 	}
 
+	// Set the response header to indicate JSON format
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(bill)
+
+	// Prepare the response struct with the billing details
+	response := struct {
+		UserID    int `json:"user_id"`
+		VehicleID int `json:"vehicle_id"`
+
+		TotalAmount float64 `json:"total_amount"`
+		Discount    float64 `json:"discount"`
+	}{
+		UserID:      billingRecord.UserID,
+		TotalAmount: billingRecord.TotalAmount,
+		Discount:    billingRecord.Discount,
+	}
+
+	// Send the response back to the client
+	json.NewEncoder(w).Encode(response)
+}
+
+// HandleGetInvoicesByUser handles the API request to fetch all invoices for a user
+func GetInvoicesByUserHandler(w http.ResponseWriter, r *http.Request) {
+	// Decode user_id from query parameters
+	userIDParam := r.URL.Query().Get("user_id")
+	if userIDParam == "" {
+		http.Error(w, "Missing user_id parameter", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := strconv.Atoi(userIDParam)
+	if err != nil {
+		http.Error(w, "Invalid user_id parameter", http.StatusBadRequest)
+		return
+	}
+
+	dbConn := db.GetDBConn()
+	invoices, err := billing.GetInvoicesByUser(dbConn, userID)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		http.Error(w, "Error fetching invoices", http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with the invoices as JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(invoices)
 }
 
 func main() {
-	http.HandleFunc("/billing", HandleCalculateBilling)
-
-	log.Println("Billing Service is running on port 8083...")
-	err := http.ListenAndServe(":8083", nil)
+	err := db.InitDB()
 	if err != nil {
+		log.Fatalf("Failed to initialise database: %v", err)
+	}
+	defer db.CloseDB()
+
+	router := mux.NewRouter()
+	router.HandleFunc("/calculatebilling", HandleCalculateBilling)
+	router.HandleFunc("/createinvoice", CreateInvoiceHandler)
+	router.HandleFunc("/invoices", GetInvoicesByUserHandler)
+
+	corsHandler := handlers.CORS(
+		handlers.AllowedOrigins([]string{"*"}),
+		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE"}),
+		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
+	)
+
+	log.Println("Billing Service is running on port 8083")
+	if err := http.ListenAndServe(":8083", corsHandler(router)); err != nil {
 		log.Fatal("Error starting server: ", err)
 	}
 }
