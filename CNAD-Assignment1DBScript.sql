@@ -67,8 +67,8 @@ USE CarSharingBillingService;
 
 CREATE TABLE Billing (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    rental_id INT NOT NULL,
     user_id INT NOT NULL,
+    vehicle_id INT NOT NULL,
     total_amount DECIMAL(10, 2) NOT NULL,
     discount DECIMAL(10, 2) DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
