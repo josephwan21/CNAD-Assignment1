@@ -25,7 +25,7 @@ The microservices for this project have been organised into separate services, e
 <h3><strong>Prerequisities</strong></h3>
 
 - **Go:** Install Go for development
-- **Database:** MySQL setup for the relational database
+- **Database:** Install MySQL for setting up the databases for each service of the application through executing the database script as provided.
 
 <h3><strong>Clone the Repository</strong></h3>
 
