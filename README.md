@@ -17,6 +17,9 @@ The microservices for this project have been organised into separate services, e
 
 ## Microservices Architecture Diagram
 
+<img src="InitialMicroservicesArchitecture.jpg" alt="Microservices Architecture" width="auto" height="auto"/>
+
+
 ## Instructions for Setting Up and Running Microservices
 
 <h3><strong>Prerequisities</strong></h3>
