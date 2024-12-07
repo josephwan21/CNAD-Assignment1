@@ -8,6 +8,9 @@ const userId = decoded.userid;
 
 console.log("User ID:", userId);
 
+
+
+
 // Fetch available vehicles and display them
 fetch('http://localhost:8082/vehicles')
     .then(response => response.json())
@@ -25,6 +28,7 @@ fetch('http://localhost:8082/vehicles')
                     <input type="datetime-local" id="start-time-${vehicle.id}" required>
                     <label for="end-time-${vehicle.id}">End Time:</label>
                     <input type="datetime-local" id="end-time-${vehicle.id}" required>
+                    <p class="cost-estimate" id="cost-estimate-${vehicle.id}">Estimated Cost: $0.00</p>
                     <button class="submit-reservation" data-vehicle-id="${vehicle.id}">Submit Reservation</button>
                 </div>
             `;
@@ -36,6 +40,50 @@ fetch('http://localhost:8082/vehicles')
             button.addEventListener('click', function() {
                 const vehicleId = this.getAttribute('data-vehicle-id');
                 document.getElementById(`reservation-form-${vehicleId}`).style.display = 'block';
+
+                // Attach listeners to the start and end time inputs
+                const startTimeInput = document.getElementById(`start-time-${vehicleId}`);
+                const endTimeInput = document.getElementById(`end-time-${vehicleId}`);
+                const costEstimateElement = document.getElementById(`cost-estimate-${vehicleId}`);
+        
+                [startTimeInput, endTimeInput].forEach(input => {
+                    input.addEventListener('change', () => {
+                        const startTime = startTimeInput.value;
+                        const endTime = endTimeInput.value;
+        
+                        if (!startTime || !endTime) {
+                            costEstimateElement.textContent = `Estimated Cost: $0.00`;
+                            return;
+                        }
+
+                        if (endTime <= startTime) {
+                            costEstimateElement.textContent = `Error: End time must be after start time.`;
+                            return;
+                        }
+        
+                        const estimateData = {
+                            user_id: parseInt(userId),
+                            vehicle_id: parseInt(vehicleId),
+                            start_time: new Date(startTime).toISOString(),
+                            end_time: new Date(endTime).toISOString()
+                        };
+        
+                        fetch('http://localhost:8083/calculatebilling', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(estimateData)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log(data);
+                            costEstimateElement.textContent = `Estimated Cost: $${data.total_amount}`;
+                        })
+                        .catch(err => {
+                            console.error('Error fetching cost estimate:', err);
+                            costEstimateElement.textContent = `Error fetching cost`;
+                        });
+                    });
+                });
             });
         });
 
@@ -73,6 +121,7 @@ fetch('http://localhost:8082/vehicles')
                     if (data.status === 'Active') {
                         alert('Reservation successful');
                         // Hide the form after reservation
+                        createInvoice(parseInt(vehicleId, startTimeISO, endTimeISO));
                         document.getElementById(`reservation-form-${vehicleId}`).style.display = 'none';
                     } else {
                         alert('Error reserving vehicle');
@@ -84,6 +133,42 @@ fetch('http://localhost:8082/vehicles')
         });
     });
 });
+
+// Function to create the invoice after a reservation is successful
+function createInvoice(vehicleId, startTime, endTime) {
+    const invoiceData = {
+        user_id: userId,
+        vehicle_id: vehicleId,
+        start_time: startTime,
+        end_time: endTime
+    };
+
+    // Send request to backend to generate the invoice
+    fetch('http://localhost:8083/createinvoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoiceData)
+    })
+    .then(response => response.json())
+    .then(invoice => {
+        console.log(invoice)
+        // Handle successful invoice creation
+        if (invoice) {
+            // Show the invoice details to the user
+            alert(`Invoice created successfully! User ID: ${invoice.user_id}\n Vehicle ID: ${invoice.vehicle_id} \n Vehicle: ${invoice.make} ${invoice.model} Total Amount: $${invoice.total_amount} `);
+            // Optionally, display more invoice details here
+            console.log("Invoice details:", invoice);
+        } else {
+            alert("Error generating invoice.");
+        }
+    })
+    .catch(err => {
+        console.error('Error creating invoice:', err);
+        alert('Error generating invoice');
+    });
+}
+
+
 
                 
 
