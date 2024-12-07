@@ -26,7 +26,8 @@ The microservices for this project have been organised into separate services, e
 
 <h3><strong>Clone the Repository</strong></h3>
 
-``git clone https://github.com/josephwan21/CNAD-Assignment1.git``
+
+```git clone https://github.com/josephwan21/CNAD-Assignment1.git```
 
 
 <h3><strong>Running each microservice</strong></h3>
@@ -35,19 +36,20 @@ Since each microservice contains a "main.go" in each of their respective folders
 
 Running the User Service:
 
-``cd path-to-repo/carsharinguserservice``
+```cd path-to-repo/carsharinguserservice```
 
-``go run main.go``
+```go run main.go```
 
 Running the Vehicle Service:
 
-``cd path-to-repo/carsharinguserservice``
+```cd path-to-repo/carsharingvehicleservice```
 
-``go run main.go``
+```go run main.go```
 
 Running the Billing Service:
 
-``cd path-to-repo/carsharinguserservice``
+```cd path-to-repo/carsharingbillingservice```
 
-``go run main.go``
+```go run main.go```
+
 
