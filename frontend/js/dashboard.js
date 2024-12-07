@@ -1,17 +1,14 @@
-// Check if the user is authenticated by checking for the auth token
-function checkAuth() {
-    const token = localStorage.getItem('jwt');
-    if (!token) {
-        alert('You need to log in first');
-        window.location.href = 'login.html';  // Redirect to login page if no token found
-    } else {
-        // If logged in, fetch user data
-        fetchUserData(token);
-    }
+const token = localStorage.getItem('jwt');
+
+if (!token) {
+    alert('You need to log in first');
+    window.location.href = 'login.html';  // Redirect to login page if no token found
+} else {
+    fetchUserData(token);
 }
 
+
 // Decode JWT and extract user ID
-const token = localStorage.getItem('jwt');
 const decoded = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
 
 // Directly assign the user ID
@@ -293,4 +290,4 @@ document.getElementById('logout-btn').addEventListener('click', function() {
 });
 
 // Call checkAuth on page load to verify authentication and fetch data
-window.onload = checkAuth;
+//window.onload = checkAuth;
