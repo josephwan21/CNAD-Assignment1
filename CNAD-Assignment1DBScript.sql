@@ -1,7 +1,9 @@
+-- Drop any existing databases as shown below
 DROP DATABASE IF EXISTS CarSharingUserService;
 DROP DATABASE IF EXISTS CarSharingVehicleService;
 DROP DATABASE IF EXISTS CarSharingBillingService;
 
+-- Creation of the User Service Database
 CREATE DATABASE CarSharingUserService;
 USE CarSharingUserService;
 
@@ -18,12 +20,15 @@ CREATE TABLE Users (
 
 CREATE TABLE Rentals (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    reservation_id INT,
     user_id INT,
     vehicle_id INT,
     start_time TIMESTAMP,
-    end_time TIMESTAMP
+    end_time TIMESTAMP,
+    rental_status VARCHAR(50) CHECK (rental_status IN ('Completed', 'Canceled'))
 );
 
+-- Creation of the Vehicle Service Database
 CREATE DATABASE CarSharingVehicleService;
 USE CarSharingVehicleService;
 
@@ -36,6 +41,7 @@ CREATE TABLE Vehicles (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Insertion of sample data
 INSERT INTO Vehicles (make, model, license_plate, is_available)
 VALUES 
 ('Tesla', 'Model 3', 'ABC123', TRUE),
@@ -54,6 +60,7 @@ CREATE TABLE Reservations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Insertion of sample vehicle reservations
 INSERT INTO Reservations (user_id, vehicle_id, start_time, end_time, status)
 VALUES
 (1, 1, '2024-12-03 10:00:00', '2024-12-03 12:00:00', 'Active'),
@@ -62,6 +69,7 @@ VALUES
 (4, 4, '2024-12-03 19:00:00', '2024-12-03 21:00:00', 'Active'),
 (5, 5, '2024-12-03 22:00:00', '2024-12-03 23:59:59', 'Canceled');
 
+-- Creation of the Billing Service Database
 CREATE DATABASE CarSharingBillingService;
 USE CarSharingBillingService;
 
