@@ -3,7 +3,7 @@ package main
 import (
 	rental_history "Assg1/CarSharingUserService/models"
 	"Assg1/CarSharingUserService/package/db"
-	"Assg1/CarSharingUserService/package/utils"
+	"Assg1/CarSharingUserService/package/hashing"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -54,7 +54,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !utils.CheckPasswordHash(user.Password, dbPassword) {
+	if !hashing.CheckPasswordHash(user.Password, dbPassword) {
 		http.Error(w, "Invalid password", http.StatusUnauthorized)
 		return
 	}
@@ -95,7 +95,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashedPassword, err := utils.HashPassword(user.Password)
+	hashedPassword, err := hashing.HashPassword(user.Password)
 	if err != nil {
 		http.Error(w, "Error hashing password", http.StatusInternalServerError)
 		return
@@ -147,7 +147,7 @@ func sendVerificationEmail(email string, userId int) {
 	// Create the verification URL
 	verificationURL := fmt.Sprintf("http://localhost:8080/verify?token=%s", token)
 
-	// Send the email (simplified for example)
+	// Send the email
 	auth := smtp.PlainAuth("", "josephbwanzj@gmail.com", "ofpi wrtr jnoa iniy", "smtp.gmail.com")
 	to := []string{email}
 	subject := "Verify Your Email"
@@ -417,6 +417,6 @@ func main() {
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
 	)
 
-	fmt.Println("User Service is running on port 8080")
-	log.Fatal(http.ListenAndServe(":8080", corsHandler(router)))
+	fmt.Println("User Service is running on port 5000")
+	log.Fatal(http.ListenAndServe(":5000", corsHandler(router)))
 }

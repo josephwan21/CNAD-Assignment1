@@ -45,7 +45,7 @@ func CalculateBilling(db *sql.DB, userID int, startTime time.Time, endTime time.
 	// Calculate the total cost based on the duration and rate
 	totalAmount := ratePerHour * duration
 
-	// Discount (example: 10% off for Premium members)
+	// Discount (10% off for Premium members)
 	var discount float64
 	if membership == "Premium" {
 		discount = totalAmount * 0.10 // 10% discount for Premium

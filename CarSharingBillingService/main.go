@@ -154,7 +154,7 @@ func DeleteInvoiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the database connection (assuming you have a function to connect to the database)
+	// Get the database connection
 	dbConn := db.GetDBConn()
 
 	// Call the function to delete the invoice by reservation ID
@@ -235,8 +235,8 @@ func main() {
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
 	)
 
-	log.Println("Billing Service is running on port 8083")
-	if err := http.ListenAndServe(":8083", corsHandler(router)); err != nil {
+	log.Println("Billing Service is running on port 5002")
+	if err := http.ListenAndServe(":5002", corsHandler(router)); err != nil {
 		log.Fatal("Error starting server: ", err)
 	}
 }

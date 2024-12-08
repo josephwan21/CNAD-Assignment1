@@ -77,7 +77,6 @@ func HandleCreateReservation(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(res)
 }
 
-// Example usage in a handler or service
 func HandleGetUserReservations(w http.ResponseWriter, r *http.Request) {
 	tokenString := r.Header.Get("Authorization")
 	if tokenString == "" {
@@ -218,8 +217,8 @@ func main() {
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
 	)
 
-	log.Println("Vehicle Service is running on port 8082")
-	err := http.ListenAndServe(":8082", corsHandler(router))
+	log.Println("Vehicle Service is running on port 5001")
+	err := http.ListenAndServe(":5001", corsHandler(router))
 	if err != nil {
 		log.Fatal("Error starting server: ", err)
 	}
