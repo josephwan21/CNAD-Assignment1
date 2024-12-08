@@ -63,7 +63,6 @@ CREATE TABLE Reservations (
 -- Insertion of sample vehicle reservations
 INSERT INTO Reservations (user_id, vehicle_id, start_time, end_time, status)
 VALUES
-(1, 1, '2024-12-03 10:00:00', '2024-12-03 12:00:00', 'Active'),
 (2, 2, '2024-12-03 13:00:00', '2024-12-03 15:00:00', 'Active'),
 (3, 3, '2024-12-03 16:00:00', '2024-12-03 18:00:00', 'Completed'),
 (4, 4, '2024-12-03 19:00:00', '2024-12-03 21:00:00', 'Active'),
