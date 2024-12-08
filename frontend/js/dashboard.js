@@ -35,6 +35,7 @@ function fetchUserData(token) {
             // Fetch and display user's reservations
             fetchReservations();
             fetchInvoicesByUser(userId);
+            fetchRentalHistory(userId);
         } else {
             alert('Unable to fetch user data');
         }
@@ -93,16 +94,17 @@ function fetchReservations() {
                 return `<div class="reservation">
                             <p>Vehicle: <strong>${reservation.make} ${reservation.model}</strong></p>
                             <p>Reservation from ${reservation.start_time} to ${reservation.end_time}</p>
-                            <button class="update-res-btn" data-id="${reservation.id}">Update Reservation</button>
-                            <button class="delete-res-btn" data-id="${reservation.id}">Delete Reservation</button>
-                            <div class="update-form" id="update-form-${reservation.id}" style="display: none;">
+                            <button class="update-res-btn" data-vehicle_id="${reservation.vehicle_id}" data-id="${reservation.id}">Update Reservation</button>
+                            <button class="delete-res-btn" data-vehicle_id="${reservation.vehicle_id}" data-start_time="${reservation.start_time}" data-end_time="${reservation.end_time}" data-id="${reservation.id}">Delete Reservation</button>
+                            <form class="update-form" id="update-form-${reservation.id}" style="display: none;">
                                 <label for="start-time-${reservation.id}">Start Time:</label>
-                                <input type="datetime-local" id="start-time-${reservation.id}">
+                                <input type="datetime-local" id="start-time-${reservation.id}" required>
                                 <label for="end-time-${reservation.id}">End Time:</label>
-                                <input type="datetime-local" id="end-time-${reservation.id}">
-                                <button class="save-update-btn" data-id="${reservation.id}">Save</button>
+                                <input type="datetime-local" id="end-time-${reservation.id}" required>
+                                <p class="cost-estimate" id="cost-estimate-${reservation.id}">Estimated Cost: $0.00</p>
+                                <button type="submit" class="save-update-btn" data-vehicle_id="${reservation.vehicle_id}" data-id="${reservation.id}">Save</button>
                                 <button class="cancel-update-btn" data-id="${reservation.id}">Cancel</button>
-                            </div>
+                            </form>
                         </div>`;
             }).join('');
             document.getElementById('reservations').innerHTML = reservationsList;
@@ -143,16 +145,63 @@ function fetchReservations() {
 // Handle update button click
 function handleUpdate(event) {
     const reservationId = event.target.dataset.id;
+    const vehicleId = event.target.dataset.vehicle_id;
     const updateForm = document.getElementById(`update-form-${reservationId}`);
     updateForm.style.display = 'block'; // Show the form to update reservation timings
 
     const updateButton = document.querySelector('.update-res-btn');
     updateButton.style.display = 'none';
+
+    const startTimeInput = document.getElementById(`start-time-${reservationId}`);
+    const endTimeInput = document.getElementById(`end-time-${reservationId}`);
+    const costEstimateElement = document.getElementById(`cost-estimate-${reservationId}`);
+
+    [startTimeInput, endTimeInput].forEach(input => {
+        input.addEventListener('change', () => {
+            const startTime = startTimeInput.value;
+            const endTime = endTimeInput.value;
+
+            if (!startTime || !endTime) {
+                costEstimateElement.textContent = `Estimated Cost: $0.00`;
+                return;
+            }
+
+            if (endTime <= startTime) {
+                costEstimateElement.textContent = `End time must be after start time.`;
+                startTimeInput.value = "";
+                endTimeInput.value = "";
+                return;
+            }
+
+            const estimateData = {
+                user_id: parseInt(userId),
+                vehicle_id: parseInt(vehicleId),
+                start_time: new Date(startTime).toISOString(),
+                end_time: new Date(endTime).toISOString()
+            };
+
+            fetch('http://localhost:8083/calculatebilling', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(estimateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                costEstimateElement.textContent = `Estimated Cost: $${(data.total_amount).toFixed(2)}`;
+            })
+            .catch(err => {
+                console.error('Error fetching cost estimate:', err);
+                costEstimateElement.textContent = `Error fetching cost`;
+            });
+        });
+    });
 }
 
 // Handle save update button click
 function handleSaveUpdate(event) {
     const reservationId = event.target.dataset.id;
+    const vehicleId = event.target.dataset.vehicle_id;
     const newStartTime = document.getElementById(`start-time-${reservationId}`).value;
     const newEndTime = document.getElementById(`end-time-${reservationId}`).value;
 
@@ -178,6 +227,8 @@ function handleSaveUpdate(event) {
     .then(response => response.json())
     .then(data => {
         console.log('Updated reservation:', data);
+        updateInvoice(parseInt(reservationId), parseInt(vehicleId), startTimeISO, endTimeISO)
+        
         fetchReservations();  // Refresh reservations list
     })
     .catch(err => {
@@ -200,6 +251,10 @@ function handleCancelUpdate(event) {
 // Handle delete button click
 async function handleDelete(event) {
     const reservationId = event.target.dataset.id;
+    const vehicleId = event.target.dataset.vehicle_id;
+    const startTime = event.target.dataset.start_time;
+    const endTime = event.target.dataset.end_time;
+    console.log("timings: ", reservationId, startTime, endTime)
 
     // Confirm before deletion
     if (confirm('Are you sure you want to delete this reservation?')) {
@@ -215,8 +270,10 @@ async function handleDelete(event) {
         .then(data => {
             console.log('Deleted reservation:', data);
 
-            deleteInvoice(reservationId, token);
+            //deleteInvoice(reservationId, token);
             console.log("Deleted invoice by reservation ID:", reservationId);
+
+            CompleteOrCancelReservationHandler(reservationId, userId, vehicleId, startTime, endTime, 'Canceled')
             
             fetchReservations();  // Refresh reservations list
             
@@ -246,7 +303,7 @@ async function fetchInvoicesByUser(userId) {
             }
             invoices.forEach(invoice => {
                 const invoiceItem = document.createElement('div');
-                invoiceItem.innerHTML = `<strong>Invoice ID: ${invoice.id}</strong><br>Vehicle ID: ${invoice.vehicle_id}<br>Vehicle: ${invoice.make} ${invoice.model}<br>Total Amount: $${invoice.total_amount}<br>Discount: $${invoice.discount}`;
+                invoiceItem.innerHTML = `<strong>Invoice ID: ${invoice.id}</strong><br>Vehicle ID: ${invoice.vehicle_id}<br>Vehicle: ${invoice.make} ${invoice.model}<br>Final Amount: $${invoice.total_amount}<br>Discount: $${invoice.discount}`;
                 
                 invoicesList.appendChild(invoiceItem);
             });
@@ -289,5 +346,119 @@ document.getElementById('logout-btn').addEventListener('click', function() {
     window.location.href = 'login.html';  // Redirect to login page
 });
 
-// Call checkAuth on page load to verify authentication and fetch data
-//window.onload = checkAuth;
+// Fetch user rental history
+async function fetchRentalHistory(userId) {
+    try {
+        const response = await fetch(`http://localhost:8080/getRentals?user_id=${userId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch rental history');
+        }
+        
+        const rentalHistory = await response.json();
+        displayRentalHistory(rentalHistory); // Display the fetched rental history
+    } catch (err) {
+        console.error('Error fetching rental history:', err);
+        alert('An error occurred while fetching your rental history.');
+    }
+}
+
+// Display rental history on the page
+function displayRentalHistory(history) {
+    const rentalHistoryList = document.getElementById('rental-history');
+    rentalHistoryList.innerHTML = ''; // Clear previous content
+
+    console.log("History: ", history)
+    
+    if (!history || history.length === 0) {
+        rentalHistoryList.innerHTML = '<p>Your rental history is empty.</p>';
+        return;
+    }
+
+    history.forEach(entry => {
+        console.log("Entry: ", entry);
+        const rentalEntryDiv = document.createElement('div');
+        rentalEntryDiv.classList.add('rental-history-entry');
+        
+        rentalEntryDiv.innerHTML = `
+            <p><strong>Vehicle ID:</strong> ${entry.vehicle_id}</p>
+            <p><strong>Vehicle:</strong> ${entry.make} ${entry.model}</p>
+            <p><strong>Reservation:</strong> ${entry.start_time} to ${entry.end_time}</p>
+            <p><strong>Rental Cost:</strong> $${entry.total_amount}</p>
+        `;
+        
+        rentalHistoryList.appendChild(rentalEntryDiv);
+    });
+}
+
+
+async function CompleteOrCancelReservationHandler(reservationId, userId, vehicleId, startTime, endTime, rentalStatus) {
+    // Rental history data
+    const rentalHistoryData = {
+        reservation_id: parseInt(reservationId),
+        user_id: parseInt(userId),
+        vehicle_id: parseInt(vehicleId),
+        start_time: startTime,
+        end_time: endTime,
+        rental_status: rentalStatus
+    };
+
+    try {
+        const response = await fetch('http://localhost:8080/addRentalEntry', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(rentalHistoryData)
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to add rental history');
+        }
+
+        const data = await response.json();
+        console.log('Rental history added:', data);
+
+    } catch (err) {
+        console.error('Error adding rental history:', err);
+        alert('An error occurred while adding your rental history.');
+    }
+}
+
+function updateInvoice(reservationId, vehicleId, startTime, endTime) {
+    const invoiceData = {
+        reservation_id: reservationId,
+        user_id: userId,
+        vehicle_id: vehicleId,
+        start_time: startTime,
+        end_time: endTime
+    };
+
+    // Send request to backend to generate the invoice
+    fetch(`http://localhost:8083/updateinvoice?reservation_id=${reservationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoiceData)
+    })
+    .then(response => response.json())
+    .then(invoice => {
+        console.log(invoice)
+        // Handle successful invoice creation
+        if (invoice) {
+            // Optionally, display more invoice details here
+            console.log("Invoice details:", invoice);
+        } else {
+            alert("Error updating invoice.");
+        }
+    })
+    .catch(err => {
+        console.error('Error updating invoice:', err);
+        alert('Error updating invoice');
+    });
+}
