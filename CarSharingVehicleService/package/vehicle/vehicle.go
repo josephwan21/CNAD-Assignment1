@@ -33,10 +33,6 @@ func GetAvailableVehicles(db *sql.DB) ([]Vehicle, error) {
 			log.Println("Error scanning vehicle:", err)
 			continue
 		}
-		if err != nil {
-			log.Println("Error parsing created_at timestamp:", err)
-			continue
-		}
 		vehicles = append(vehicles, vehicle)
 	}
 
