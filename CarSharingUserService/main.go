@@ -1,6 +1,7 @@
 package main
 
 import (
+	rental_history "Assg1/CarSharingUserService/models"
 	"Assg1/CarSharingUserService/package/db"
 	"Assg1/CarSharingUserService/package/utils"
 	"database/sql"
@@ -9,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/smtp"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -308,7 +310,7 @@ func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Strip the "Bearer " prefix from the token
+	//Strip the "Bearer " prefix from the token
 	tokenString = tokenString[7:]
 
 	// Parse and validate the token
@@ -326,7 +328,7 @@ func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Assuming the email is in the 'sub' claim
+	//Email is in the 'sub' claim
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || claims["sub"] == nil {
 		http.Error(w, "Email not found in token", http.StatusUnauthorized)
@@ -349,6 +351,54 @@ func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+// Add rental history entry handler
+func addRentalHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	var history rental_history.RentalHistoryEntry
+	err := json.NewDecoder(r.Body).Decode(&history)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		http.Error(w, "Invalid input format", http.StatusBadRequest)
+		return
+	}
+
+	dbConn := db.InitDB()
+	defer dbConn.Close()
+
+	err = rental_history.AddRentalHistoryEntry(dbConn, history)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		http.Error(w, "Failed to add rental history", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Rental history added successfully"})
+}
+
+// Get rental history for a user handler
+func getRentalHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	userIDParam := r.URL.Query().Get("user_id")
+	userID, err := strconv.Atoi(userIDParam)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	dbConn := db.InitDB()
+	defer dbConn.Close()
+
+	history, err := rental_history.GetRentalHistory(dbConn, userID)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		http.Error(w, "Failed to fetch rental history", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(history)
+}
+
 func main() {
 
 	router := mux.NewRouter()
@@ -358,6 +408,8 @@ func main() {
 	router.HandleFunc("/user-profile", HandleGetProfile)
 	router.HandleFunc("/update-profile", HandleUpdateProfile)
 	router.HandleFunc("/verify", verifyEmailHandler)
+	router.HandleFunc("/getRentals", getRentalHistoryHandler)
+	router.HandleFunc("/addRentalEntry", addRentalHistoryHandler)
 
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
