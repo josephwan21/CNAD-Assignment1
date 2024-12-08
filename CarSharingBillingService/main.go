@@ -169,6 +169,52 @@ func DeleteInvoiceHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Invoice deleted successfully"})
 }
 
+// Handler for updating the invoice
+func updateInvoiceHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract reservation ID from URL or request body
+	reservationIDStr := r.URL.Query().Get("reservation_id")
+	if reservationIDStr == "" {
+		http.Error(w, "Reservation ID is required", http.StatusBadRequest)
+		return
+	}
+	reservationID, err := strconv.Atoi(reservationIDStr)
+	if err != nil {
+		http.Error(w, "Invalid reservation ID", http.StatusBadRequest)
+		return
+	}
+
+	var invoiceData struct {
+		UserID    int       `json:"user_id"`
+		VehicleID int       `json:"vehicle_id"`
+		StartTime time.Time `json:"start_time"`
+		EndTime   time.Time `json:"end_time"`
+	}
+	err = json.NewDecoder(r.Body).Decode(&invoiceData)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	dbConn := db.GetDBConn()
+
+	// Calculate the billing (total amount and discount) based on the reservation times
+	totalAmount, discount, err := billing.CalculateBilling(dbConn, invoiceData.UserID, invoiceData.StartTime, invoiceData.EndTime)
+	if err != nil {
+		http.Error(w, "Error calculating billing", http.StatusInternalServerError)
+		return
+	}
+
+	// Update the invoice in the database
+	err = billing.UpdateInvoice(dbConn, reservationID, invoiceData.UserID, invoiceData.VehicleID, totalAmount, discount)
+	if err != nil {
+		http.Error(w, "Failed to update invoice", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Invoice updated successfully"})
+}
+
 func main() {
 	err := db.InitDB()
 	if err != nil {
@@ -180,6 +226,7 @@ func main() {
 	router.HandleFunc("/calculatebilling", HandleCalculateBilling)
 	router.HandleFunc("/createinvoice", CreateInvoiceHandler)
 	router.HandleFunc("/invoices", GetInvoicesByUserHandler).Methods("GET")
+	router.HandleFunc("/updateinvoice", updateInvoiceHandler).Methods("PUT")
 	router.HandleFunc("/invoices", DeleteInvoiceHandler).Methods("DELETE")
 
 	corsHandler := handlers.CORS(

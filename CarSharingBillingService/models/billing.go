@@ -120,3 +120,16 @@ func DeleteInvoiceByReservationID(db *sql.DB, reservationID int) error {
 	}
 	return nil
 }
+
+func UpdateInvoice(db *sql.DB, reservationID int, userID int, vehicleID int, totalAmount float64, discount float64) error {
+	query := `
+        UPDATE billing
+        SET total_amount = ?, discount = ?
+        WHERE reservation_id = ?
+    `
+	_, err := db.Exec(query, totalAmount, discount, reservationID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
