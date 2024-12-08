@@ -23,14 +23,14 @@ fetch('http://localhost:8082/vehicles')
                 <h3>${vehicle.make} ${vehicle.model}</h3>
                 <p>License Plate: ${vehicle.license_plate}</p>
                 <button class="reserve-btn" data-vehicle-id="${vehicle.id}">Reserve Vehicle</button>
-                <div class="reservation-form" id="reservation-form-${vehicle.id}" style="display:none;">
+                <form class="reservation-form" id="reservation-form-${vehicle.id}" style="display:none;">
                     <label for="start-time-${vehicle.id}">Start Time:</label>
                     <input type="datetime-local" id="start-time-${vehicle.id}" required>
                     <label for="end-time-${vehicle.id}">End Time:</label>
                     <input type="datetime-local" id="end-time-${vehicle.id}" required>
                     <p class="cost-estimate" id="cost-estimate-${vehicle.id}">Estimated Cost: $0.00</p>
-                    <button class="submit-reservation" data-vehicle-id="${vehicle.id}">Submit Reservation</button>
-                </div>
+                    <button type="submit" class="submit-reservation" data-vehicle-id="${vehicle.id}">Submit Reservation</button>
+                </form>
             `;
             vehiclesList.appendChild(vehicleDiv);
         });
@@ -57,7 +57,9 @@ fetch('http://localhost:8082/vehicles')
                         }
 
                         if (endTime <= startTime) {
-                            costEstimateElement.textContent = `Error: End time must be after start time.`;
+                            costEstimateElement.textContent = `End time must be after start time.`;
+                            startTimeInput.value = "";
+                            endTimeInput.value = "";
                             return;
                         }
         
