@@ -12,7 +12,7 @@ console.log("User ID:", userId);
 
 
 // Fetch available vehicles and display them
-fetch('http://localhost:8082/vehicles')
+fetch('http://localhost:5001/vehicles')
     .then(response => response.json())
     .then(vehicles => {
         const vehiclesList = document.getElementById('vehicles-list');
@@ -23,14 +23,14 @@ fetch('http://localhost:8082/vehicles')
                 <h3>${vehicle.make} ${vehicle.model}</h3>
                 <p>License Plate: ${vehicle.license_plate}</p>
                 <button class="reserve-btn" data-vehicle-id="${vehicle.id}">Reserve Vehicle</button>
-                <form class="reservation-form" id="reservation-form-${vehicle.id}" style="display:none;">
+                <div class="reservation-form" id="reservation-form-${vehicle.id}" style="display:none;">
                     <label for="start-time-${vehicle.id}">Start Time:</label>
                     <input type="datetime-local" id="start-time-${vehicle.id}" required>
                     <label for="end-time-${vehicle.id}">End Time:</label>
                     <input type="datetime-local" id="end-time-${vehicle.id}" required>
                     <p class="cost-estimate" id="cost-estimate-${vehicle.id}">Estimated Cost: $0.00</p>
                     <button type="submit" class="submit-reservation" data-vehicle-id="${vehicle.id}">Submit Reservation</button>
-                </form>
+                </div>
             `;
             vehiclesList.appendChild(vehicleDiv);
         });
@@ -70,7 +70,7 @@ fetch('http://localhost:8082/vehicles')
                             end_time: new Date(endTime).toISOString()
                         };
         
-                        fetch('http://localhost:8083/calculatebilling', {
+                        fetch('http://localhost:5002/calculatebilling', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(estimateData)
@@ -91,7 +91,7 @@ fetch('http://localhost:8082/vehicles')
 
         // Handle form submission for reservation
         document.querySelectorAll('.submit-reservation').forEach(button => {
-            button.addEventListener('click', function() {
+            button.addEventListener("click", function() {
                 const vehicleId = this.getAttribute('data-vehicle-id');
                 console.log("Vehicle ID:", vehicleId);
                 console.log("Logged User ID:", userId);
@@ -113,7 +113,7 @@ fetch('http://localhost:8082/vehicles')
                     start_time: startTimeISO,
                     end_time: endTimeISO
                 };
-                fetch('http://localhost:8082/reserve', {
+                fetch('http://localhost:5001/reserve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(reservationData)
@@ -148,7 +148,7 @@ function createInvoice(reservationId, vehicleId, startTime, endTime) {
     };
 
     // Send request to backend to generate the invoice
-    fetch('http://localhost:8083/createinvoice', {
+    fetch('http://localhost:5002/createinvoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(invoiceData)

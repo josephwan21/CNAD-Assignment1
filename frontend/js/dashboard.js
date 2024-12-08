@@ -18,7 +18,7 @@ console.log("User ID:", userId);
 
 // Fetch user details from the backend using the auth token
 function fetchUserData(token) {
-    fetch('http://localhost:8080/user-profile', {
+    fetch('http://localhost:5000/user-profile', {
         method: 'GET',
         headers: {
             'Authorization': `Bearer ${token}`  // Send the token in the Authorization header
@@ -31,6 +31,10 @@ function fetchUserData(token) {
             // Display user info (name and membership tier)
             document.getElementById('welcome-message').innerText = `Hello, ${data.name}`;
             document.getElementById('membership-tier').innerHTML = `<strong>${data.membership}</strong>`;
+
+            // Populate the update form fields
+            document.getElementById('update-name').value = data.name;
+            document.getElementById('update-email').value = data.email;
 
             // Fetch and display user's reservations
             fetchReservations();
@@ -55,7 +59,7 @@ document.getElementById('update-profile-form').addEventListener('submit', functi
 
     const token = localStorage.getItem('jwt');
     
-    fetch('http://localhost:8080/update-profile', {
+    fetch('http://localhost:5000/update-profile', {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -79,7 +83,7 @@ document.getElementById('update-profile-form').addEventListener('submit', functi
 // Fetch the user's reservations
 function fetchReservations() {
     const token = localStorage.getItem('jwt');
-    fetch('http://localhost:8082/reservations', {
+    fetch('http://localhost:5001/reservations', {
         method: 'GET',
         headers: {
             'Authorization': `Bearer ${token}`
@@ -93,10 +97,10 @@ function fetchReservations() {
             const reservationsList = data.map(reservation => {
                 return `<div class="reservation">
                             <p>Vehicle: <strong>${reservation.make} ${reservation.model}</strong></p>
-                            <p>Reservation from ${reservation.start_time} to ${reservation.end_time}</p>
+                            <p>Reservation from ${new Date(reservation.start_time).toLocaleString()} to ${new Date(reservation.end_time).toLocaleString()}</p>
                             <button class="update-res-btn" data-vehicle_id="${reservation.vehicle_id}" data-id="${reservation.id}">Update Reservation</button>
                             <button class="delete-res-btn" data-vehicle_id="${reservation.vehicle_id}" data-start_time="${reservation.start_time}" data-end_time="${reservation.end_time}" data-id="${reservation.id}">Delete Reservation</button>
-                            <form class="update-form" id="update-form-${reservation.id}" style="display: none;">
+                            <div class="update-form" id="update-form-${reservation.id}" style="display: none;">
                                 <label for="start-time-${reservation.id}">Start Time:</label>
                                 <input type="datetime-local" id="start-time-${reservation.id}" required>
                                 <label for="end-time-${reservation.id}">End Time:</label>
@@ -104,7 +108,7 @@ function fetchReservations() {
                                 <p class="cost-estimate" id="cost-estimate-${reservation.id}">Estimated Cost: $0.00</p>
                                 <button type="submit" class="save-update-btn" data-vehicle_id="${reservation.vehicle_id}" data-id="${reservation.id}">Save</button>
                                 <button class="cancel-update-btn" data-id="${reservation.id}">Cancel</button>
-                            </form>
+                            </div>
                         </div>`;
             }).join('');
             document.getElementById('reservations').innerHTML = reservationsList;
@@ -180,7 +184,7 @@ function handleUpdate(event) {
                 end_time: new Date(endTime).toISOString()
             };
 
-            fetch('http://localhost:8083/calculatebilling', {
+            fetch('http://localhost:5002/calculatebilling', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(estimateData)
@@ -213,7 +217,7 @@ function handleSaveUpdate(event) {
 
     // Call API to update the reservation
     const token = localStorage.getItem('jwt');
-    fetch(`http://localhost:8082/reservations/${reservationId}`, {
+    fetch(`http://localhost:5001/reservations/${reservationId}`, {
         method: 'PUT',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -259,7 +263,7 @@ async function handleDelete(event) {
     // Confirm before deletion
     if (confirm('Are you sure you want to delete this reservation?')) {
         const token = localStorage.getItem('jwt');
-        await fetch(`http://localhost:8082/reservations/${reservationId}`, {
+        await fetch(`http://localhost:5001/reservations/${reservationId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -288,7 +292,7 @@ async function handleDelete(event) {
 }
 
 async function fetchInvoicesByUser(userId) {
-    await fetch(`http://localhost:8083/invoices?user_id=${userId}`)
+    await fetch(`http://localhost:5002/invoices?user_id=${userId}`)
         .then(response => response.json())
         .then(invoices => {
             console.log('Invoices:', invoices);
@@ -316,7 +320,7 @@ async function fetchInvoicesByUser(userId) {
 
 // Function to delete the invoice associated with the reservation
 async function deleteInvoice(reservationId, token) {
-    await fetch(`http://localhost:8083/invoices?reservation_id=${reservationId}`, {
+    await fetch(`http://localhost:5002/invoices?reservation_id=${reservationId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -349,7 +353,7 @@ document.getElementById('logout-btn').addEventListener('click', function() {
 // Fetch user rental history
 async function fetchRentalHistory(userId) {
     try {
-        const response = await fetch(`http://localhost:8080/getRentals?user_id=${userId}`, {
+        const response = await fetch(`http://localhost:5000/getRentals?user_id=${userId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -388,7 +392,7 @@ function displayRentalHistory(history) {
         rentalEntryDiv.innerHTML = `
             <p><strong>Vehicle ID:</strong> ${entry.vehicle_id}</p>
             <p><strong>Vehicle:</strong> ${entry.make} ${entry.model}</p>
-            <p><strong>Reservation:</strong> ${entry.start_time} to ${entry.end_time}</p>
+            <p><strong>Reservation:</strong> ${new Date(entry.start_time).toLocaleString()} to ${new Date(entry.end_time).toLocaleString()}</p>
             <p><strong>Rental Cost:</strong> $${entry.total_amount}</p>
         `;
         
@@ -409,7 +413,7 @@ async function CompleteOrCancelReservationHandler(reservationId, userId, vehicle
     };
 
     try {
-        const response = await fetch('http://localhost:8080/addRentalEntry', {
+        const response = await fetch('http://localhost:5000/addRentalEntry', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -441,7 +445,7 @@ function updateInvoice(reservationId, vehicleId, startTime, endTime) {
     };
 
     // Send request to backend to generate the invoice
-    fetch(`http://localhost:8083/updateinvoice?reservation_id=${reservationId}`, {
+    fetch(`http://localhost:5002/updateinvoice?reservation_id=${reservationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(invoiceData)
